@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 3.8)
-project(itav_agv_tracker)
+project(tracker)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
+# add_definitions("-DNDEBUG")
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(dlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -38,6 +40,7 @@ endif()
 
 include_directories(
   include 
+  ${DLIB_INCLUDE_DIRECTORY}
   ${EIGEN3_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
   ${rviz_visual_tools_INCLUDE_DIRS}
@@ -46,11 +49,11 @@ include_directories(
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable(itav_agv_tracker 
-src/itav_agv_tracker.cpp
+add_executable(tracker 
+src/tracker.cpp
 src/kf.cpp)
 
-ament_target_dependencies(itav_agv_tracker
+ament_target_dependencies(tracker
   rclcpp
   std_msgs 
   sensor_msgs
@@ -62,16 +65,18 @@ ament_target_dependencies(itav_agv_tracker
   pcl_conversions
 )
 
-target_link_libraries(itav_agv_tracker 
+target_link_libraries(tracker 
   ${EIGEN3_LIBRARIES}
   ${Boost_SYSTEM_LIBRARY}
   ${PCL_LIBRARIES}
+  ${DLIB_LIBRARIES}
+  dlib
   
 )
 
 install(
   TARGETS 
-    itav_agv_tracker
+    tracker
   DESTINATION 
     lib/${PROJECT_NAME}
 )

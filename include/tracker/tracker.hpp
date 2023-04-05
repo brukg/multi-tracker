@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <iterator>
 #include <algorithm>
+#include <dlib/optimization/max_cost_assignment.h>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
@@ -29,13 +30,13 @@
 #include <nav_msgs/msg/path.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <rviz_visual_tools/rviz_visual_tools.hpp>
-#include <itav_agv_tracker/kf.hpp>
+#include <tracker/kf.hpp>
 
 
-namespace itav_agv_tracker
+namespace tracker
 {
   /**
-   * @class itav_agv_tracker::TrackerNode
+   * @class tracker::TrackerNode
    * @brief Receives Pointcloud2 message from lidar sensor and filter its points with an optional pcl filter.
    * 
    */
@@ -80,14 +81,44 @@ namespace itav_agv_tracker
        * @brief cluster the point clouds and return the cluster points
        * 
        */
-      std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clusterPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+      std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> meanShiftCluster(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
       
       /**
        * @brief associate the objects with the measurements
        * 
        */
-       void associateVectors(std::vector<Eigen::VectorXd>& predicted, std::vector<Eigen::VectorXd>& measured);
-      
+       void associateVectors(std::vector<Eigen::VectorXd>& pred, std::vector<Eigen::VectorXd>& meas);
+
+      /**
+       * @brief Construct a new euclidean distance object
+       * 
+       * @param p1 
+       * @param p2 
+       */
+      float euclidean_distance(const pcl::PointXYZ& p1, const pcl::PointXYZ& p2);
+
+      /**
+       * @brief Construct a new kernel mean shift object
+       * 
+       * @param point 
+       * @param cloud 
+       * @param bandwidth 
+       */
+      pcl::PointXYZ kernel_mean_shift(const pcl::PointXYZ& point, const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud);
+      /**
+       * @brief Construct a new kernel mean shift object
+       * 
+       * @param point 
+       * @param cloud 
+       * @param bandwidth 
+       */
+      std::vector<Eigen::Vector2f> compute_xy_centroids(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>& clusters);
+
+
+
+
+
+
       // ROS2 subscriber and related topic name
       rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
       // obejects id publisher
@@ -111,6 +142,8 @@ namespace itav_agv_tracker
       
       // clustering parameters
       double clustering_tolerance_, min_cluster_size_, max_cluster_size_;
+      double bandwidth_, convergence_threshold_;
+      int max_iterations_;
       int points_threshold_;
       double dt_, t_old_, t_new_;
       bool first_scan_ , is_update_;
@@ -118,10 +151,14 @@ namespace itav_agv_tracker
       // ROS2 publisher and related topic name 
       rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_;
       std::string param_topic_pointcloud_out;
+
       std::vector<KalmanFilter> objects_kf;
       std::vector<EnsembleKalmanFilter> objects_enkf;
-      std::vector<KalmanFilter> objects_;
-      int n_, m_, c_, N_, predict_num_, max_dist_;
+      std::vector<EnsembleKalmanFilter> objects_;
+      
+      int n_, m_, c_, N_, predict_num_;
+      double max_dist_;
+      int publish_rate_;
       std::vector<Eigen::VectorXd> meas;
       int id_;
       std::string tracker_type_;
@@ -133,6 +170,6 @@ namespace itav_agv_tracker
 
   };
   
-} // namespace itav_agv_tracker
+} // namespace tracker
 
 #endif //TRACKER_NODE__TRACKER_NODE_NODE_HPP_
