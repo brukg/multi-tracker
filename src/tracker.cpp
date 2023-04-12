@@ -8,7 +8,8 @@ namespace tracker
     
   TrackerNode::TrackerNode(const rclcpp::NodeOptions& options) : Node("itav_agv_tracker_node",options) 
   {
-    declare_parameter<std::string>("map_frame",map_frame_);
+    declare_parameter<std::string>("map_frame","map");
+    declare_parameter<std::string>("base_frame", "base_link");
     declare_parameter<int>("publish_rate", 10);
     declare_parameter<std::string>("points2_1","in_1");
     declare_parameter<std::string>("points2_2","in_2");
@@ -31,6 +32,7 @@ namespace tracker
     declare_parameter<double>("max_distance", 3);
     
     map_frame_ = get_parameter("map_frame").as_string();
+    robot_base_frame_ = get_parameter("base_frame").as_string();
     publish_rate_ = get_parameter("publish_rate").as_int();
     points2_1_sub_ = get_parameter("points2_1").as_string();
     points2_2_sub_ = get_parameter("points2_2").as_string();
@@ -52,7 +54,7 @@ namespace tracker
     predict_num_ = get_parameter("predict_num_with_no_update").as_int();
     max_dist_ = get_parameter("max_distance").as_double();
 
-    auto sensor_qos = rclcpp::QoS(rclcpp::KeepLast(1000), rmw_qos_profile_sensor_data);
+    auto sensor_qos = rclcpp::QoS(rclcpp::KeepLast(2), rmw_qos_profile_sensor_data);
     
     // publishers
     cluster_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(param_topic_pointcloud_out,1);
@@ -72,6 +74,10 @@ namespace tracker
     timer_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&TrackerNode::trackObjects, this));
 
+    tf_buffer_ =
+      std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ =
+      std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     RCLCPP_INFO(this->get_logger(), "\n"
                                     "Node:       tracker\n"
                                     "Subscribes: Pointcloud2 message: %s\n"
@@ -133,7 +139,7 @@ namespace tracker
       for (int i =0; i < objects_.size(); i++) {
         // RCLCPP_INFO(this->get_logger(), "predict(): x: %f, y: %f ", objects_[i].state()(0), objects_[i].state()(1));
         if (objects_[i].getCounter() < predict_num_) {
-          objects_[i].setDt(dt_);
+          objects_[i].setDt(0.1);
           objects_[i].predict();
           pred.push_back(objects_[i].state());
         } else { //remove object
@@ -149,13 +155,13 @@ namespace tracker
       is_update_ = false;
       associateVectors(pred, meas);
       // RCLCPP_INFO(this->get_logger(), "after associateVectors: objects_.size(): %d", objects_.size());
+      // publish the state of the objects
+      publishMarkers();
     }
 
-    // publish the state of the objects
-    publishMarkers();
     
   }
-
+  // is there a bug in the associateVectors function?
   void TrackerNode::associateVectors(std::vector<Eigen::VectorXd>& pred, std::vector<Eigen::VectorXd>& meas)
   {
     // int num_predicted = pred.size();
@@ -163,19 +169,16 @@ namespace tracker
     // Eigen::MatrixXf cost_matrix(num_predicted, num_measured);
     // RCLCPP_INFO(this->get_logger(), "associateVectors: pred.size(): %d, meas.size(): %d", pred.size(), meas.size());
     // // RCLCPP Info all the pred members in structured style
-    // for (int i = 0; i < pred.size(); i++) {
-    //   RCLCPP_INFO(this->get_logger(), "pred[%d]: x: %f, y: %f ", i, pred[i](0), pred[i](1));
+    // for (size_t i = 0; i < pred.size(); i++) {
     // }
     // // RCLCPP Info all the meas members in structured style
-    // for (int i = 0; i < meas.size(); i++) {
-    //   RCLCPP_INFO(this->get_logger(), "meas[%d]: x: %f, y: %f ", i, meas[i](0), meas[i](1));
+    // for (size_t i = 0; i < meas.size(); i++) {
     // }
-    // RCLCPP_INFO(this->get_logger(), "max dist: %f", max_dist_);
     // // Compute cost matrix (negative distance) between pred and meas vectors
     // dlib::matrix<int> dlib_cost_matrix(num_predicted, num_measured);
 
-    // for (int i = 0; i < num_predicted; i++) {
-    //     for (int j = 0; j < num_measured; j++) {
+    // for (size_t i = 0; i < num_predicted; i++) {
+    //     for (size_t j = 0; j < num_measured; j++) {
     //         float dist = (pred[i].head(2) - meas[j].head(2)).norm();
     //         dlib_cost_matrix(i, j) = (dist <= max_dist_) ? static_cast<int>(std::round((max_dist_ - dist)*100)) : 0;//std::numeric_limits<int>::max();
     //     }
@@ -185,14 +188,14 @@ namespace tracker
     // // Solve assignment problem using the Hungarian algorithm
     // std::vector<long>  assignment_matrix = dlib::max_cost_assignment(dlib_cost_matrix);
 
-    // RCLCPP_INFO(this->get_logger(), "assignment_matrix size: %d", assignment_matrix.size());
+    // // RCLCPP_INFO(this->get_logger(), "assignment_matrix size: %d", assignment_matrix.size());
     
     // for (int i = 0; i < assignment_matrix.size(); i++) {
-    //   RCLCPP_INFO(this->get_logger(), "assignment_matrix[%d]: %d", i, assignment_matrix[i]);
+    //   // RCLCPP_INFO(this->get_logger(), "assignment_matrix[%d]: %d", i, assignment_matrix[i]);
     // }
 
     // // Update pred vectors based on optimal assignment
-    // for (long i = 0; i < num_predicted; ++i) {
+    // for (size_t i = 0; i < num_predicted; ++i) {
     //   long j = assignment_matrix[i];
     //   if (j >=0 && j < num_measured) {
     //     RCLCPP_INFO(this->get_logger(), "I %d, J %d ",i, j);
@@ -200,8 +203,6 @@ namespace tracker
     //     RCLCPP_INFO(this->get_logger(), "meas[j](2): %f, meas[j](3): %f", meas[j](0), meas[j](1));
     //     double vx = (meas[j](0) - objects_[i].state()(0)) / dt_;
     //     double vy = (meas[j](1) - objects_[i].state()(1)) / dt_;
-
-    //     RCLCPP_INFO(this->get_logger(), "vx: %f, vy: %f, dt: %f", vx, vy, dt_);
 
     //     // // resize the measurement vector to include the velocity components
     //     meas[j].conservativeResize(4);
@@ -215,9 +216,9 @@ namespace tracker
     // }
     // RCLCPP_INFO(this->get_logger(), "update-----------------");
     // // Add unassociated meas vectors to the end of the pred vector list
-    // for (int j = 0; j < num_measured; j++) {
+    // for (size_t j = 0; j < num_measured; j++) {
     //     bool is_associated = false;
-    //     for (long i = 0; i < assignment_matrix.size(); ++i) {
+    //     for (size_t i = 0; i < assignment_matrix.size(); ++i) {
     //         if (assignment_matrix[i] == j) {
     //             is_associated = true;
     //             break;
@@ -302,8 +303,8 @@ namespace tracker
         // RCLCPP_INFO(this->get_logger(), "vx: %f, vy: %f, dt: %f", vx, vy, dt_);
         // resize the measurement vector to include the velocity
         meas[min_dist_idx[i]].conservativeResize(4);
-        meas[min_dist_idx[i]](2) = (hypot(vx, vy) < 0.1) or (hypot(vx, vy) > 2) ? 0 : vx;
-        meas[min_dist_idx[i]](3) = (hypot(vx, vy) < 0.1 ) or (hypot(vx, vy) > 2) ? 0 : vy;
+        meas[min_dist_idx[i]](2) = (hypot(vx, vy) < 0.2 ) or (hypot(vx, vy) > 2) ? 0 : vx;
+        meas[min_dist_idx[i]](3) = (hypot(vx, vy) < 0.2 ) or (hypot(vx, vy) > 2) ? 0 : vy;
         objects_[i].update(meas[min_dist_idx[i]]);
       }else { // if no measurement is associated with the object, remove it
         // objects_.erase(objects_.begin() + i);
@@ -534,7 +535,7 @@ namespace tracker
     }
 
   return centroids;
-}
+  }
   void TrackerNode::topicCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
   {
     // unsigned int num_points = msg->width;
@@ -544,11 +545,39 @@ namespace tracker
     pcl::PCLPointCloud2::Ptr cloud (new pcl::PCLPointCloud2 ());
     pcl::PCLPointCloud2::Ptr cloud_filtered (new pcl::PCLPointCloud2 ());
     pcl::PointCloud<pcl::PointXYZ>::Ptr input (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr old (new pcl::PointCloud<pcl::PointXYZ>);
     // pcl kdtree object
     pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZ>);
 
     pcl::fromROSMsg(*msg,*input);    
 
+    geometry_msgs::msg::TransformStamped T;
+
+    // Look up for the transformation between target_frame and source_frame
+    try {
+      T = tf_buffer_->lookupTransform(
+        map_frame_, msg->header.frame_id,
+        tf2::TimePointZero);
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_INFO(
+        this->get_logger(), "Could not transform %s to %s: %s",
+        map_frame_.c_str(), robot_base_frame_.c_str(), ex.what());
+      return;
+    }
+    // transform the pointcloud to map frame
+    pcl_ros::transformPointCloud(*input, *input, T);
+    // Create the filtering object
+    // pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+    // sor.setInputCloud (cloud);
+    // sor.setLeafSize (0.05f, 0.05f, 0.01f);
+    // sor.filter (*cloud_filtered);
+
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    *input += *old;
+    sor.setInputCloud (input);
+    sor.setMeanK (150);
+    sor.setStddevMulThresh (2.0);
+    sor.filter (*input);
     // RCLCPP_INFO(this->get_logger(), "The number of points in the input pointcloud is %i", input->size());
     std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clusters;
     // RCLCPP_INFO(this->get_logger(), "The number of clusters is %i", clusters.size());
@@ -597,15 +626,16 @@ namespace tracker
           num_pts++;
         }
         pcl::PointXYZ centroid;
-        centroid.x = x/num_pts;
-        centroid.y = y/num_pts;
+        double x_pt = x/num_pts, y_pt = y/num_pts;
+        centroid.x = x_pt;
+        centroid.y = y_pt;
         centroid.z = 0.0;
         cloud_cluster->width = cloud_cluster->points.size ();
         cloud_cluster->height = 1;
         cloud_cluster->is_dense = true;
         centroid_marker.id = it - cluster_indices.begin();
-        centroid_marker.pose.position.x = centroid.x;
-        centroid_marker.pose.position.y = centroid.y;
+        centroid_marker.pose.position.x = x_pt;
+        centroid_marker.pose.position.y = y_pt;
         centroid_array.markers.push_back(centroid_marker);
 
 
@@ -622,7 +652,7 @@ namespace tracker
         
         // visualise clusters in rviz
         sensor_msgs::msg::PointCloud2 cloud_cluster_msg;
-        pcl::toROSMsg(*cloud_cluster,cloud_cluster_msg);
+        pcl::toROSMsg(*cloud_cluster, cloud_cluster_msg);
         cloud_cluster_msg.header.frame_id = map_frame_;
         cloud_cluster_msg.header.stamp = msg->header.stamp;
 
@@ -634,12 +664,12 @@ namespace tracker
       RCLCPP_INFO(this->get_logger(), "The number of clusters is %i", centroids->size());
       meas.clear();
       
-      if (centroids -> size()>10){
+      if (centroids -> size()>1){
         kdtree->setInputCloud (centroids);
         // cluster extraction
         std::vector<pcl::PointIndices> centroid_indices;
         // pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance (1.0);
+        ec.setClusterTolerance (0.250);
         ec.setMinClusterSize (1);
         ec.setMaxClusterSize (20);
         ec.setSearchMethod (kdtree);
@@ -654,8 +684,10 @@ namespace tracker
             cloud_cluster->points.push_back (centroids->points[*pit]); //*
             x += centroids->points[*pit].x;
             y += centroids->points[*pit].y;
+
             num_pts++;
           }
+          
           pcl::PointXYZ centroid;
           centroid.x = x/num_pts;
           centroid.y = y/num_pts;
@@ -731,6 +763,7 @@ namespace tracker
       t_old_ = t_new_; // update time
     }
     is_update_ = true;
+    old = input;
   
   }
 }

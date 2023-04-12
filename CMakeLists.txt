@@ -20,6 +20,7 @@ find_package(tf2_eigen REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 find_package(rviz_visual_tools REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(pcl_ros REQUIRED)
 find_package(PCL 1.10 REQUIRED COMPONENTS common io filters segmentation)
 
 
@@ -63,6 +64,7 @@ ament_target_dependencies(tracker
   visualization_msgs
   rviz_visual_tools
   pcl_conversions
+  pcl_ros
 )
 
 target_link_libraries(tracker 

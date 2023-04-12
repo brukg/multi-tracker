@@ -19,8 +19,8 @@ KalmanFilter::KalmanFilter(
 
 void KalmanFilter::init(const Eigen::VectorXd& x0) {
   std::cout << "KalmanFilter init" << std::endl;
-  A << 1, 0, dt, 0,
-        0, 1, 0, dt,
+  A << 1, 0, 0.02, 0,
+        0, 1, 0, 0.02,
         0, 0, 1, 0,
         0, 0, 0, 1;
 
@@ -34,10 +34,10 @@ void KalmanFilter::init(const Eigen::VectorXd& x0) {
         0, 0, 0.0001, 0,
         0, 0, 0, 0.0001;
 
-  R << 0.0000001, 0, 0, 0,
-        0, 0.0000001, 0, 0,
-        0, 0, 0.0000001, 0,
-        0, 0, 0, 0.0000001;
+  R << 0.00001, 0, 0, 0,
+        0, 0.00001, 0, 0,
+        0, 0, 0.00001, 0,
+        0, 0, 0, 0.00001;
 
   P0 << 0.0001, 0, 0, 0,
         0, 0.0001, 0, 0,
