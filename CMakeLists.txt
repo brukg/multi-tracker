@@ -9,10 +9,12 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(OpenMP REQUIRED)
 find_package(dlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -22,6 +24,7 @@ find_package(rviz_visual_tools REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(PCL 1.10 REQUIRED COMPONENTS common io filters segmentation)
+add_subdirectory(dbscan)
 
 
 # uncomment the following section in order to fill in
@@ -51,13 +54,17 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 add_executable(tracker 
-src/tracker.cpp
-src/kf.cpp)
+  src/tracker.cpp
+  src/kf.cpp
+  src/utils.cpp
+  src/vis.cpp
+)
 
 ament_target_dependencies(tracker
   rclcpp
   std_msgs 
   sensor_msgs
+  geometry_msgs
   nav_msgs
   tf2_ros
   tf2_eigen
@@ -71,9 +78,8 @@ target_link_libraries(tracker
   ${EIGEN3_LIBRARIES}
   ${Boost_SYSTEM_LIBRARY}
   ${PCL_LIBRARIES}
-  ${DLIB_LIBRARIES}
   dlib
-  
+  dbscan  
 )
 
 install(

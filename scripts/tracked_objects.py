@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from std_msgs.msg import Float32MultiArray
 from sensor_msgs.msg import LaserScan, PointCloud2
-from laser_geometry import LaserProjection
+import laser_geometry.laser_geometry as lg
 # import tf listener
 import tf2_ros
 
@@ -24,17 +24,22 @@ class TrackedObjects:
         self.qos_profile = qos_profile_sensor_data
 
         self.tracked_objects_sub = node.create_subscription(Float32MultiArray, 'obstacles_state', self.tracked_objects_callback, qos_profile=self.qos_profile)
-        # self.laser_front_sub = node.create_subscription(LaserScan, 'itav_agv/safety_lidar_front_link/scan', self.laser_callback, qos_profile_sensor_data)
-        # self.laser_back_sub = node.create_subscription(LaserScan, 'itav_agv/safety_lidar_back_link/scan', self.laser_callback, qos_profile_sensor_data)
+        self.laser_front_sub = node.create_subscription(LaserScan, '/safety_lidar_front_link/scan', self.laser_callback, qos_profile_sensor_data)
+        self.laser_back_sub = node.create_subscription(LaserScan, '/safety_lidar_back_link/scan', self.laser_callback, qos_profile_sensor_data)
         
-        self.a = message_filters.Subscriber(self.node, LaserScan, 'itav_agv/safety_lidar_front_link/scan')
-        self.b =  message_filters.Subscriber(self.node, LaserScan, 'itav_agv/safety_lidar_back_link/scan')
+        # self.a = message_filters.Subscriber(self.node, LaserScan, 'itav_agv/safety_lidar_front_link/scan')
+        # self.b =  message_filters.Subscriber(self.node, LaserScan, 'itav_agv/safety_lidar_back_link/scan')
 
-        self.ts = message_filters.ApproximateTimeSynchronizer([self.a, self.b], 1, 1)
-        self.ts.registerCallback(self.laser_callback)
         
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, node)
+        # self.a = message_filters.Subscriber(self.node, LaserScan, 'safety_lidar_front_link/scan')
+        # self.b =  message_filters.Subscriber(self.node, LaserScan, 'safety_lidar_back_link/scan')
+
+
+        # self.ts = message_filters.ApproximateTimeSynchronizer([self.a, self.b], 1, 1)
+        # self.ts.registerCallback(self.laser_callback)
+        
+        # self.tf_buffer = tf2_ros.Buffer()
+        # self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, node)
         # self.point_cloud_transformer = PointCloud2Transformer(self.tf_buffer, 'map')
 
         self.point2_pub = node.create_publisher(PointCloud2, 'scan_matched_points2', 1)
@@ -42,11 +47,17 @@ class TrackedObjects:
         # self.plt_timer = node.create_timer(0.025, self.plot_tracked_objects)
     
     
-    def laser_callback(self, msg, msg2):
+    # def laser_callback(self, msg, msg2):
+    def laser_callback(self, msg):
         # print("laser callback")
         # convert laser scan to point cloud
-        lp = LaserProjection()
+        lp = lg.LaserProjection()
+        # remove points that are are too close to the robot as false positives using laser_geometry
+        # pc = lp.projectLaser(msg, min_range=0.1)
+        
+
         pc = lp.projectLaser(msg)
+        
         # transform point cloud to map frame
         # transform = self.tf_buffer.lookup_transform(
         #         'odom',  # target frame
@@ -59,8 +70,8 @@ class TrackedObjects:
 
         # publish point cloud
         self.point2_pub.publish(pc)
-        pc = lp.projectLaser(msg2)
-        self.point2_pub.publish(pc)
+        # pc = lp.projectLaser(msg2)
+        # self.point2_pub.publish(pc)
         
 
 

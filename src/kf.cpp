@@ -34,10 +34,10 @@ void KalmanFilter::init(const Eigen::VectorXd& x0) {
         0, 0, 0.0001, 0,
         0, 0, 0, 0.0001;
 
-  R << 0.00001, 0, 0, 0,
+  R << 0.0001, 0, 0, 0,
         0, 0.00001, 0, 0,
-        0, 0, 0.00001, 0,
-        0, 0, 0, 0.00001;
+        0, 0, 0.0001, 0,
+        0, 0, 0, 0.0001;
 
   P0 << 0.0001, 0, 0, 0,
         0, 0.0001, 0, 0,
@@ -124,9 +124,10 @@ void EnsembleKalmanFilter::init(const Eigen::VectorXd& x0) {
   KalmanFilter::init(x0);
   
   // Eigen::VectorXd rand = 0.000001*Eigen::VectorXd::Random(n);
-  Eigen::MatrixXd R_ = (0.1*Eigen::MatrixXd::Random(n, N-1)).colwise() + x_hat;
+  Eigen::MatrixXd noise_ = (0.1*Eigen::MatrixXd::Random(n-2, N-1)).colwise() + x_hat.head(n-2);
   X.col(0) = x_hat;
-  X.block(0, 1, n, N-1) = R_;
+  X.block(0, 1, n-2, N-1) = noise_;
+  x = x_hat;
   // for(int i = 1; i < N; i++) {
   //   X.col(i) = x_hat + rand;
   // }
@@ -157,11 +158,16 @@ void EnsembleKalmanFilter::predict() {
   // for(int i = 0; i < N; i++) {
   //   X.col(i) = x_hat + 0.00001 * Eigen::VectorXd::Random(n);
   // }
-  Eigen::MatrixXd R_ = (0.1*Eigen::MatrixXd::Random(n, N-1)).colwise() + x_hat;
+  Eigen::MatrixXd noise_ = ((R_/2)*Eigen::MatrixXd::Random(n, N-1)).colwise() + x_hat.head(n);
+
+  // RCLCPP_INFO(rclcpp::get_logger("EnKF"), "noise_ size: %d, %d values: %f", noise_.rows(), noise_.cols(), noise_(0,0));
   X.col(0) = x_hat;
-  X.block(0, 1, n, N-1) = R_;
+  X.block(0, 1, n, N-1) = noise_;
+  // RCLCPP_INFO(rclcpp::get_logger("EnKF"), "X size: %d, %d values: %f", X.rows(), X.cols(), X(2,N-1));
+  // RCLCPP_INFO(rclcpp::get_logger("EnKF"), "X size: %d, %d values: %f", X.rows(), X.cols(), X(3,N-1));
   X = A * X;
   x_hat = X * W;
+  // RCLCPP_INFO(rclcpp::get_logger("EnKF"), "x_hat: %f, %f, %f, %f", x_hat(0), x_hat(1), x_hat(2), x_hat(3));
   counter ++;
 }
 
@@ -177,9 +183,9 @@ void EnsembleKalmanFilter::update(const Eigen::VectorXd& y) {
   // }
   Y = H * X;
   // create ensemble of measurements
-  Eigen::MatrixXd R_ = (0.01*Eigen::MatrixXd::Random(m, N-1)).colwise() + y;
+  Eigen::MatrixXd noise_ = (0.01*Eigen::MatrixXd::Random(m, N-1)).colwise() + y;
   Y.col(0) = y;
-  Y.block(0, 1, m, N-1) = R_;
+  Y.block(0, 1, m, N-1) = noise_;
   Eigen::VectorXd y_hat = Y * W;
 
   A_ = X.colwise() - x_hat;
@@ -191,15 +197,17 @@ void EnsembleKalmanFilter::update(const Eigen::VectorXd& y) {
   //   P+= W(i) * (X.col(i) - x_hat) * (Y.col(i) - y_hat).transpose(); //remember this
   // }
 
-  P = A_ * B_.transpose() / (N);
+  P = A_ * B_.transpose() / (N-1);
 
-  K = P * (P + (R*0.00001)).inverse();
+  // K = P * ((A_*A_.transpose()) + (R*0.0001)).inverse();
+  K = P * (P + (R*0.0001)).inverse();
+  // K = P * (P + (R*0.00001)).inverse();
   // K = P * (B_ * B_.transpose()/(N-1) + R).inverse();
   // x_hat += K * (y - y_hat);  
   X += K * (Y - X);  
   x_hat = X * W;
   counter = 0;
-
+  x = x_hat;
   // update according to the ensemble kalman filter
 
   
@@ -234,6 +242,7 @@ void EnsembleKalmanFilter::jointProbabilisticDataAssociation(const Eigen::Matrix
     
 
 }
+
 
 
 

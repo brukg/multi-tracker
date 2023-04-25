@@ -57,7 +57,36 @@ class KalmanFilter {
 		/**
 		* Return the current state.
 		*/
-		Eigen::VectorXd state() { return x_hat; };
+		Eigen::VectorXd getState() { return x_hat; };
+
+		/**
+		 * @brief get trajectory
+		 * 
+		 */
+		std::vector<std::array<float, 2>> getTrajectory() { return trajectory; };
+
+		/**
+		 * @brief Model Motion
+		 * 
+		 */
+		virtual void modelMotion(const Eigen::VectorXd& u) { x = A*x + B*u; };
+
+		/**
+		* Return the current state.
+		*/
+		Eigen::VectorXd getPrevState() { return x; };
+
+		/**
+		 * @brief get radius
+		 * 
+		 */
+		virtual double getRadius() { return R_; };
+
+		/**
+		 * @brief set radius
+		 * 
+		 */
+		virtual void setRadius(const double R_) { this->R_ = R_; };
 
 
 		/**
@@ -104,9 +133,11 @@ class KalmanFilter {
 		Eigen::MatrixXd I;
 
 		// Estimated states
-		Eigen::VectorXd x_hat;
+		Eigen::VectorXd x_hat, x;
+		// trajectory
+		std::vector<std::array<float, 2>> trajectory;
 		int counter = 0, id_;
-		double dt;
+		double dt, R_;
 };
 
 class EnsembleKalmanFilter: public KalmanFilter {
@@ -158,10 +189,6 @@ class EnsembleKalmanFilter: public KalmanFilter {
 		*/
 		void updateH(const Eigen::MatrixXd H);
 
-		/**
-		* Return the current state.
-		*/
-		// Eigen::VectorXd state() { return x_hat; };
 
 		/**
 		 * @brief set the A matrix
@@ -180,6 +207,14 @@ class EnsembleKalmanFilter: public KalmanFilter {
 		 * 
 		 */
 		int getCounter() { return counter; };
+		
+		/**
+		 * @brief get Ensembles
+		 * 
+		 */
+		Eigen::MatrixXd getEnsembles() { return X; };
+
+		 
 	private:
 
 		// Matrices for computation
