@@ -3,9 +3,10 @@
 namespace tracker
 {
 
-  using namespace std::placeholders;
+  // using namespace std::placeholders;
     
-  TrackerNode::TrackerNode(const rclcpp::NodeOptions& options) : Node("itav_agv_tracker_node",options) 
+  TrackerNode::TrackerNode(const rclcpp::NodeOptions& options) 
+  : Node("itav_agv_tracker_node",options)
   { 
     declare_parameter<std::string>("map_frame","map");
     declare_parameter<std::string>("base_frame", "base_link");
@@ -33,7 +34,7 @@ namespace tracker
     declare_parameter<int>("predict_num_with_no_update", 10);
     declare_parameter<double>("max_distance", 3);
     declare_parameter<double>("max_expected_velocity", 1);
-    
+    declare_parameter<int>("sliding_window_size", 10);
 
     visualise_ = get_parameter("visualize").as_bool();
     map_frame_ = get_parameter("map_frame").as_string();
@@ -57,6 +58,7 @@ namespace tracker
     c_ = get_parameter("control_size").as_int();
     m_ = get_parameter("measurement_size").as_int();
     N_ = get_parameter("ensemble_size").as_int();
+    sliding_window_size_ = get_parameter("sliding_window_size").as_int();
     association_type_ = get_parameter("data_association_type").as_string();
     predict_num_ = get_parameter("predict_num_with_no_update").as_int();
     max_dist_ = get_parameter("max_distance").as_double();
@@ -66,11 +68,11 @@ namespace tracker
     
     // publishers
     cluster_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(param_topic_pointcloud_out,1);
-    objects_id_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("objects_id",1);
-    state_size_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("state_size",1);
-    marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("tracked_objects",1);
-    centroid_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("centroid",1);
-    objects_state_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("obstacles_state",1);
+    objects_id_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("tracker/objects_id",1);
+    state_size_pub_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("tracker/state_size",1);
+    marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("tracker/tracked_objects",1);
+    centroid_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("tracker/centroid",1);
+    objects_state_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("tracker/obstacles_state",1);
     // point_particles_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("point_particles",1);
     
     // subscribers
@@ -78,13 +80,13 @@ namespace tracker
     scan_sub_1_.subscribe(this, points2_1_sub_, rmw_qos_profile_sensor_data);
     scan_sub_2_.subscribe(this, points2_2_sub_, rmw_qos_profile_sensor_data);
     RCLCPP_INFO(this->get_logger(), "Subscribing to %s and %s", points2_1_sub_.c_str(), points2_2_sub_.c_str());
-    sync_.reset(new message_filters::Synchronizer<approximate_policy>(approximate_policy(10), scan_sub_1_, scan_sub_2_));
-    sync_->registerCallback(std::bind(&TrackerNode::scanCallback, this, _1, _2));
+    sync_.reset(new message_filters::Synchronizer<approximate_policy>(approximate_policy(1), scan_sub_1_, scan_sub_2_));
+    sync_->registerCallback(std::bind(&TrackerNode::scanCallback, this, std::placeholders::_1, std::placeholders::_2));
     RCLCPP_INFO(this->get_logger(), "Subscribed to %s and %s", points2_1_sub_.c_str(), points2_2_sub_.c_str());
     // subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-    //                         points2_1_sub_, sensor_qos, std::bind(&tracker::TrackerNode::scanCallback, this, _1));
+    //                         points2_1_sub_, sensor_qos, std::bind(&tracker::TrackerNode::scanCallback, this, std::placeholders::_1));
     subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-                            "point_cloud", sensor_qos, std::bind(&tracker::TrackerNode::pointCloudCallback, this, _1));
+                            "point_cloud", sensor_qos, std::bind(&tracker::TrackerNode::pointCloudCallback, this, std::placeholders::_1));
     
     first_scan_ = true; dt_ = 0.0; t_old_ = 0.0; t_new_ = 0.0; id_ = 0;
     is_update_ = false;
@@ -109,22 +111,23 @@ namespace tracker
                                     "Running...",
                       points2_1_sub_.c_str(), param_topic_pointcloud_out.c_str(), visualise_ ? "true" : "false");
 
+    
     RCLCPP_INFO(this->get_logger(), "clustering parameters: \n"
-    "clustering_tolerance: %f\n"
-    "min_cluster_size: %f\n"
-    "max_cluster_size: %f\n"
-    "points_threshold: %d\n"
-    "cluster_search_method: %s\n",
-    clustering_tolerance_, min_cluster_size_, max_cluster_size_, points_threshold_, cluster_search_method_.c_str());
+                                    "clustering_tolerance: %f\n"
+                                    "min_cluster_size: %f\n"
+                                    "max_cluster_size: %f\n"
+                                    "points_threshold: %d\n"
+                                    "cluster_search_method: %s\n",
+                                    clustering_tolerance_, min_cluster_size_, max_cluster_size_, points_threshold_, cluster_search_method_.c_str());
 
     RCLCPP_INFO(this->get_logger(), "kf parameters: \n"
-    "state_size: %d\n"
-    "control_size: %d\n"
-    "measurement_size: %d\n"
-    "ensemble_size: %d\n"
-    "predict_num_with_no_update: %d\n"
-    "max_distance: %f\n",
-    n_, c_, m_, N_, predict_num_, max_dist_);
+                                    "state_size: %d\n"
+                                    "control_size: %d\n"
+                                    "measurement_size: %d\n"
+                                    "ensemble_size: %d\n"
+                                    "predict_num_with_no_update: %d\n"
+                                    "max_distance: %f\n",
+                                    n_, c_, m_, N_, predict_num_, max_dist_);
   }
 
   // void TrackerNode::trackObjects(std::vector<Eigen::VectorXd> &meas)
@@ -139,7 +142,6 @@ namespace tracker
         if (tracker_type_ == "kf"){
           // objects_ = &objects_kf;
           // objects_.push_back(KalmanFilter(n_, c_, m_));
-
         } else if (tracker_type_ == "ekf"){
           // objects_ = objects_ekf;
           // objects_.push_back(EKF(n_, c_, m_));
@@ -149,8 +151,9 @@ namespace tracker
         }
         objects_[i].init(meas[i]);
         objects_[i].setIdentifier(id_);
-        objects_[i].setRadius(meas[i](2));
-        RCLCPP_INFO(this->get_logger(), "initializing object  radius: %f", meas[i](2));
+        objects_[i].setRadius(hypot(meas[i](2), meas[i](3)) / 2);
+        objects_[i].setWidthHeight(meas[i](2), meas[i](3));
+        objects_[i].setSlidingWindowSize(sliding_window_size_);
         // RCLCPP_INFO(this->get_logger(), "initializing object %i id_ %i", i, objects_[i].getIdentifier());
         id_++;
       }
@@ -165,7 +168,7 @@ namespace tracker
       for (int i =0; i < objects_.size(); i++) {
         // RCLCPP_INFO(this->get_logger(), "predict(): x: %f, y: %f ", objects_[i].getState()(0), objects_[i].getState()(1));
         if (objects_[i].getCounter() < predict_num_) {
-          objects_[i].setDt(0.1);
+          objects_[i].setDt(1/publish_rate_);
           objects_[i].predict();
           pred.push_back(objects_[i].getState());
         } else { //remove object
@@ -213,26 +216,28 @@ namespace tracker
       int associated_measurement = associations[i];
         if (associated_measurement != -1 && associated_measurement < meas.size() && associated_measurement >= 0) {
           // RCLCPP_INFO(this->get_logger(), "i: %d, associated_measurement: %d", i, associated_measurement);
-          RCLCPP_INFO(this->get_logger(), "pred: %f, %f, meas: %f, %f", objects_[i].getState()(0), objects_[i].getState()(1), meas[associated_measurement](0), meas[associated_measurement](1));
+          // RCLCPP_INFO(this->get_logger(), "pred: %f, %f, meas: %f, %f", objects_[i].getState()(0), objects_[i].getState()(1), meas[associated_measurement](0), meas[associated_measurement](1));
 
           double dx = (meas[associated_measurement](0) - objects_[i].getPrevState()(0));
           double dy = (meas[associated_measurement](1) - objects_[i].getPrevState()(1));
           double d = hypot(dx, dy);
+          // RCLCPP_INFO(this->get_logger(), "d: %f", d);
           double vx = dx / dt_;
           double vy = dy / dt_;
           double v = hypot(vx, vy);
-
+          // RCLCPP_INFO(this->get_logger(), "v: %f", v);
           // previous velocity for first order filter
           double v_x_prv = objects_[i].getPrevState()(2);
           double v_y_prv = objects_[i].getPrevState()(3);
           double v_prv = hypot(v_x_prv, v_y_prv);
 
-          RCLCPP_INFO(this->get_logger(), "v: %f, v_prv: %f", v, v_prv);
+          // RCLCPP_INFO(this->get_logger(), "v: %f, v_prv: %f", v, v_prv);
           // resize the measurement vector to include the velocity
           // meas[associated_measurement].conservativeResize(4);
+          objects_[i].setRadius(hypot(meas[associated_measurement](2), meas[associated_measurement](3)) / 2);
+          objects_[i].setWidthHeight(meas[associated_measurement](2), meas[associated_measurement](3));
           double radius =  objects_[i].getRadius();
-          objects_[i].setRadius(meas[associated_measurement](2));
-          RCLCPP_INFO(this->get_logger(), "radius: %f, d: %f, dt: %f", radius, d, dt_);
+          // RCLCPP_INFO(this->get_logger(), "radius: %f, d: %f, dt: %f", radius, d, dt_);
           // if (d> radius || d >   1.0) {
           if (d > max_dist_ || abs(v - v_prv) > max_expected_velocity_) {
             // meas[associated_measurement](0) = objects_[i].getState()(0);
@@ -240,9 +245,13 @@ namespace tracker
             // meas[associated_measurement](2) = 0;
             // meas[associated_measurement](3) = 0;
           } else {
-          meas[associated_measurement](2) = (vx + objects_[i].getPrevState()(2)) / 2;
-          meas[associated_measurement](3) = (vy + objects_[i].getPrevState()(3)) / 2;
-          objects_[i].update(meas[associated_measurement]);
+            objects_[i].vx_.accumulate(vx);
+            objects_[i].vy_.accumulate(vy);
+            // meas[associated_measurement](2) = (1-0.5)*objects_[i].getPrevState()(2) + (0.5*vx);
+            // meas[associated_measurement](3) = (1-0.5)*objects_[i].getPrevState()(3) + (0.5*vy);
+            meas[associated_measurement](2) = objects_[i].vx_.getRollingMean();
+            meas[associated_measurement](3) = objects_[i].vy_.getRollingMean();
+            objects_[i].update(meas[associated_measurement]);
           }
 
         }else { // if no measurement is associated with the object, remove it
@@ -257,7 +266,7 @@ namespace tracker
     #pragma omp parallel for
     for (int i = 0; i < meas.size(); i++) {
       if (std::find(associations.begin(), associations.end(), i) == associations.end()) {
-        RCLCPP_INFO(this->get_logger(), "new object");
+        // RCLCPP_INFO(this->get_logger(), "new object");
         if (tracker_type_ == "kf"){
           // objects_ = objects_kf;
           // objects_.push_back(KalmanFilter(n_, c_, m_));
@@ -267,11 +276,14 @@ namespace tracker
           // objects_.push_back(EKF(n_, c_, m_));
         } else if (tracker_type_ == "enkf"){
           // objects_ = objects_enkf;
-          objects_.push_back(EnsembleKalmanFilter(n_, c_, m_, N_));
+          objects_.push_back(EnsembleKalmanFilter(n_, c_, m_, N_)); // initialize the object
         }
-        
-        objects_.back().init(meas[i]);
-        objects_.back().setIdentifier(id_);
+        meas[i](2) = 0; // initialize velocity to zero
+        meas[i](3) = 0; // initialize velocity to zero
+        objects_.back().init(meas[i]); // initialize the state of the object
+        objects_.back().setIdentifier(id_); // set the id of the object
+        objects_.back().setWidthHeight(meas[i](2), meas[i](3)); // set the width and height of the object
+        objects_.back().setSlidingWindowSize(sliding_window_size_); // set the sliding window size
         id_++;
       }
       // RCLCPP_INFO(this->get_logger(), "meas: %f, %f", meas[i](0), meas[i](1));
@@ -364,9 +376,9 @@ namespace tracker
           double height = max_y_ - min_y_;
           double center_x = (max_x_ + min_x_)/2;
           double center_y = (max_y_ + min_y_)/2;
-          double R_ = sqrt(pow(width, 2) + pow(height, 2))/2;
+          double R_ = hypot(width, height)/2;
           // if (radius > 0.0) 
-          meas.push_back(Eigen::Vector4d(center_x, center_y, (R_+0.0025), 0));
+          meas.push_back(Eigen::Vector4d(center_x, center_y, (width+0.0025), (height+0.0025)));
           // meas.push_back(Eigen::Vector4d(centroid.x, centroid.y, R_, 0));
 
         }
@@ -382,7 +394,7 @@ namespace tracker
       }
 
 
-      RCLCPP_INFO(this->get_logger(), "The number of clusters is %i", centroids->size());
+      // RCLCPP_INFO(this->get_logger(), "The number of clusters is %i", centroids->size());
       
       
       // if (centroids -> size()>1){
@@ -479,7 +491,7 @@ namespace tracker
       int minPts = 1;
       // convert input to cloud
       dbscan.init(groupA, cloud_, octreeResolution, eps, minPtsAux, minPts);
-      RCLCPP_INFO(this->get_logger(), "The number of points is %i", cloud_->points.size());
+      // RCLCPP_INFO(this->get_logger(), "The number of points is %i", cloud_->points.size());
       // dbscan.init(groupA, cloud, cloud->points.size() * 0.001, eps, 5, 100);
       // dbscan.init(groupA, cloud, cloud->points.size() * 0.001, eps, 5, 100);
       dbscan.generateClusters();
@@ -508,7 +520,7 @@ namespace tracker
       //   clusters.push_back(cloud_cluster);
       //   RCLCPP_INFO(this->get_logger(), "The number of points in cluster %i is %i", i, cloud_cluster->points.size());
       // }
-      RCLCPP_INFO(this->get_logger(), "The number of clusters is %i", num_clusters);
+      // RCLCPP_INFO(this->get_logger(), "The number of clusters is %i", num_clusters);
       
 
     }

@@ -23,9 +23,11 @@ class TrackedObjects:
 
         self.qos_profile = qos_profile_sensor_data
 
-        self.tracked_objects_sub = node.create_subscription(Float32MultiArray, 'obstacles_state', self.tracked_objects_callback, qos_profile=self.qos_profile)
-        self.laser_front_sub = node.create_subscription(LaserScan, '/safety_lidar_front_link/scan', self.laser_callback, qos_profile_sensor_data)
-        self.laser_back_sub = node.create_subscription(LaserScan, '/safety_lidar_back_link/scan', self.laser_callback, qos_profile_sensor_data)
+        # self.tracked_objects_sub = node.create_subscription(Float32MultiArray, 'obstacles_state', self.tracked_objects_callback, qos_profile=self.qos_profile)
+        # self.laser_front_sub = node.create_subscription(LaserScan, 'itav_agv/safety_lidar_front_link/scan', self.laser_callback, qos_profile_sensor_data)
+        # self.laser_back_sub = node.create_subscription(LaserScan, '/safety_lidar_back_link/scan', self.laser_callback, qos_profile_sensor_data)
+        self.laser_back_sub = node.create_subscription(LaserScan, 'scan', self.laser_callback, qos_profile_sensor_data)
+        # self.laser_back_sub = node.create_subscription(LaserScan, 'itav_agv/safety_lidar_back_link/scan', self.laser_callback, qos_profile_sensor_data)
         
         # self.a = message_filters.Subscriber(self.node, LaserScan, 'itav_agv/safety_lidar_front_link/scan')
         # self.b =  message_filters.Subscriber(self.node, LaserScan, 'itav_agv/safety_lidar_back_link/scan')
@@ -38,12 +40,12 @@ class TrackedObjects:
         # self.ts = message_filters.ApproximateTimeSynchronizer([self.a, self.b], 1, 1)
         # self.ts.registerCallback(self.laser_callback)
         
-        # self.tf_buffer = tf2_ros.Buffer()
-        # self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, node)
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, node)
         # self.point_cloud_transformer = PointCloud2Transformer(self.tf_buffer, 'map')
 
-        self.point2_pub = node.create_publisher(PointCloud2, 'scan_matched_points2', 1)
-        self.tracked_objects_sub  # prevent unused variable warning
+        self.point2_pub = node.create_publisher(PointCloud2, 'point_cloud', 1)
+        # self.tracked_objects_sub  # prevent unused variable warning
         # self.plt_timer = node.create_timer(0.025, self.plot_tracked_objects)
     
     

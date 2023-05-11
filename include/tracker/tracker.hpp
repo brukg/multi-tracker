@@ -248,7 +248,7 @@ namespace tracker
       std::vector<EnsembleKalmanFilter> objects_enkf;
       std::vector<EnsembleKalmanFilter> objects_;
       
-      int n_, m_, c_, N_, predict_num_;
+      int n_, m_, c_, N_, predict_num_, sliding_window_size_;
       double max_dist_, max_expected_velocity_;
       int publish_rate_;
       std::vector<Eigen::VectorXd> meas;

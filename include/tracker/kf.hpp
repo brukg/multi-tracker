@@ -1,6 +1,7 @@
 
 #include <Eigen/Dense>
 #include <rclcpp/rclcpp.hpp>
+#include "rcpputils/rcppmath/rolling_mean_accumulator.hpp"
 #include <random>
 #include <iostream>
 
@@ -47,7 +48,7 @@ class KalmanFilter {
 		/**
 		* Update the dynamics matrix.
 		*/
-		void update_dynamics(const Eigen::MatrixXd A);
+		virtual void update_dynamics(const Eigen::MatrixXd A);
 
 		/**
 		* Update the output matrix.
@@ -72,9 +73,9 @@ class KalmanFilter {
 		virtual void modelMotion(const Eigen::VectorXd& u) { x = A*x + B*u; };
 
 		/**
-		* Return the current state.
+		* Return the previous state.
 		*/
-		Eigen::VectorXd getPrevState() { return x; };
+		virtual Eigen::VectorXd getPrevState() { return x; };
 
 		/**
 		 * @brief get radius
@@ -88,19 +89,42 @@ class KalmanFilter {
 		 */
 		virtual void setRadius(const double R_) { this->R_ = R_; };
 
+		/**
+		 * @brief set object width and height
+		 * 
+		 */
+		virtual void setWidthHeight(const double width, const double height) {this -> width = width; this -> height = height; };
 
+		/**
+		 * @brief get object width and height
+		 * 
+		 */
+		virtual std::array<double, 2> getWidthHeight() { return {width, height}; };
 		/**
 		 * @brief set the A matrix
 		 * 
 		 */
-		void setA(const Eigen::MatrixXd A) { this->A = A; };
+		virtual void setA(const Eigen::MatrixXd A) { this->A = A; };
 
 		/**
 		 * @brief set the delta time
 		 * 
 		 */
-		void setDt(const double dt) { this->dt = dt; };
+		virtual void setDt(const double dt) 
+		{ 
+			this->dt = dt; 
+			this -> A << 1, 0, dt, 0,
+										0, 1, 0, dt,
+										0, 0, 1, 0,
+										0, 0, 0, 1;
+		};
 
+		/**
+		 * @brief set the sliding window size
+		 * 
+		 */
+		void setSlidingWindowSize(const int sliding_window_size);
+		
 		/**
 		 * @brief get counter
 		 * 
@@ -118,6 +142,11 @@ class KalmanFilter {
 		 * 
 		 */
 		void setIdentifier(const int id_) { this->id_ = id_; };
+
+		//
+		using RollingMeanAccumulator = rcppmath::RollingMeanAccumulator<double>;
+		RollingMeanAccumulator vx_;
+		RollingMeanAccumulator vy_;
 	protected:
 
 		// Matrices for computation
@@ -125,7 +154,8 @@ class KalmanFilter {
 
 		// System dimensions
 		int m, n, c;
-
+		// sliding_window_size
+		int sliding_window_size = 3;
 		// Is the filter initialized?
 		bool initialized = false;
 
@@ -137,7 +167,7 @@ class KalmanFilter {
 		// trajectory
 		std::vector<std::array<float, 2>> trajectory;
 		int counter = 0, id_;
-		double dt, R_;
+		double dt, R_, width, height;
 };
 
 class EnsembleKalmanFilter: public KalmanFilter {
@@ -196,11 +226,6 @@ class EnsembleKalmanFilter: public KalmanFilter {
 		 */
 		void set_A(const Eigen::MatrixXd A) { this->A = A; };
 
-		/**
-		 * @brief set the delta time
-		 * 
-		 */
-		void setDt(const double dt) { this->dt = dt; };
 
 		/**
 		 * @brief get counter
@@ -221,7 +246,7 @@ class EnsembleKalmanFilter: public KalmanFilter {
 		// Eigen::MatrixXd A, B, H, Q, R, P, K; // kalman 
 		Eigen::MatrixXd Y, X; // Ensemble matrices
 		Eigen::VectorXd W; // Weights
-		Eigen::MatrixXd A_, B_, P_;
+		Eigen::MatrixXd Pf, Pa, P_;
 		Eigen::VectorXd y_hat;
 		int N; // N is the number of ensemble members
 };

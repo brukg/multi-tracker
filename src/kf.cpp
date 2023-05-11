@@ -10,14 +10,15 @@ KalmanFilter::KalmanFilter(
     : initialized(false), 
     n(n), c(c), m(m),
     A(n, n), B(n, c), H(m, n), Q(n, n), R(m, n), P0(n, n),
-    I(n, n), x_hat(n)
+    I(n, n), x_hat(n),
+    vx_(sliding_window_size), vy_(sliding_window_size) 
 {
-  std::cout << "KalmanFilter constructor" << std::endl;
   I.setIdentity();
   dt = 0.0;
-}
+};
 
-void KalmanFilter::init(const Eigen::VectorXd& x0) {
+void KalmanFilter::init(const Eigen::VectorXd& x0) 
+{
   std::cout << "KalmanFilter init" << std::endl;
   A << 1, 0, 0.02, 0,
         0, 1, 0, 0.02,
@@ -45,6 +46,7 @@ void KalmanFilter::init(const Eigen::VectorXd& x0) {
         0, 0, 0, 0.0001;
   
   x_hat << x0(0), x0(1), 0, 0;
+  x = x_hat;
   P = P0;
   // random identifier
   std::random_device dev;
@@ -53,16 +55,18 @@ void KalmanFilter::init(const Eigen::VectorXd& x0) {
 
   // id_ = dist6(rng);
   initialized = true;
-}
+};
 
-void KalmanFilter::init() {
+void KalmanFilter::init() 
+{
   Eigen::VectorXd x0(4);
   x0 << 0, 0, 0, 0;
   init(x0);
   // initialized = true;
-}
+};
 
-void KalmanFilter::predict(const Eigen::VectorXd& u) {
+void KalmanFilter::predict(const Eigen::VectorXd& u) 
+{
 
   if(!initialized) {
     init();
@@ -70,9 +74,10 @@ void KalmanFilter::predict(const Eigen::VectorXd& u) {
 
   x_hat = A*x_hat + B*u;
   P = A*P*A.transpose() + Q;
-}
+};
 
-void KalmanFilter::predict() {
+void KalmanFilter::predict() 
+{
 
   if(!initialized) {
     init();
@@ -81,26 +86,36 @@ void KalmanFilter::predict() {
   x_hat = A*x_hat;
   P = A*P*A.transpose() + Q;
   counter ++;
-}
+};
 
-void KalmanFilter::update(const Eigen::VectorXd& y) {
+void KalmanFilter::update(const Eigen::VectorXd& y) 
+{
 
   K = P*H.transpose()*(H*P*H.transpose() + R).inverse();
   x_hat += K * (y - H*x_hat);
   P = (I - K*H)*P;
   counter = 0;
+  x = x_hat;
 
-}
+};
 
-void KalmanFilter::update_dynamics(const Eigen::MatrixXd A) {
+void KalmanFilter::update_dynamics(const Eigen::MatrixXd A) 
+{
 
   this->A = A;
-}
+};
 
-void KalmanFilter::update_output(const Eigen::MatrixXd H) {
+void KalmanFilter::update_output(const Eigen::MatrixXd H) 
+{
 
   this->H = H;
-}
+};
+
+void KalmanFilter::setSlidingWindowSize(const int sliding_window_size) 
+{ 
+  vx_ = RollingMeanAccumulator(size_t(sliding_window_size)); 
+  vy_ = RollingMeanAccumulator(size_t(sliding_window_size));
+};
 
 
 
@@ -118,7 +133,8 @@ EnsembleKalmanFilter::EnsembleKalmanFilter(
   
 }
 
-void EnsembleKalmanFilter::init(const Eigen::VectorXd& x0) {
+void EnsembleKalmanFilter::init(const Eigen::VectorXd& x0) 
+{
   std::cout << "EnsembleKalmanFilter init" << std::endl;
 
   KalmanFilter::init(x0);
@@ -133,13 +149,15 @@ void EnsembleKalmanFilter::init(const Eigen::VectorXd& x0) {
   // }
 }
 
-void EnsembleKalmanFilter::init() {
+void EnsembleKalmanFilter::init() 
+{
   Eigen::VectorXd x0(4);
   x0 << 0, 0, 0, 0;
   init(x0);
 }
 
-void EnsembleKalmanFilter::predict(const Eigen::VectorXd& u) {
+void EnsembleKalmanFilter::predict(const Eigen::VectorXd& u) 
+{
 
   if(!initialized) {
     init();
@@ -150,7 +168,8 @@ void EnsembleKalmanFilter::predict(const Eigen::VectorXd& u) {
   }
 }
 
-void EnsembleKalmanFilter::predict() {
+void EnsembleKalmanFilter::predict() 
+{
 
   if(!initialized) {
     init();
@@ -158,7 +177,7 @@ void EnsembleKalmanFilter::predict() {
   // for(int i = 0; i < N; i++) {
   //   X.col(i) = x_hat + 0.00001 * Eigen::VectorXd::Random(n);
   // }
-  Eigen::MatrixXd noise_ = ((R_/2)*Eigen::MatrixXd::Random(n, N-1)).colwise() + x_hat.head(n);
+  Eigen::MatrixXd noise_ = ((R_)*Eigen::MatrixXd::Random(n, N-1)).colwise() + x_hat.head(n);
 
   // RCLCPP_INFO(rclcpp::get_logger("EnKF"), "noise_ size: %d, %d values: %f", noise_.rows(), noise_.cols(), noise_(0,0));
   X.col(0) = x_hat;
@@ -171,7 +190,8 @@ void EnsembleKalmanFilter::predict() {
   counter ++;
 }
 
-void EnsembleKalmanFilter::update(const Eigen::VectorXd& y) {
+void EnsembleKalmanFilter::update(const Eigen::VectorXd& y) 
+{
 
   if(!initialized) {
     init();
@@ -188,21 +208,16 @@ void EnsembleKalmanFilter::update(const Eigen::VectorXd& y) {
   Y.block(0, 1, m, N-1) = noise_;
   Eigen::VectorXd y_hat = Y * W;
 
-  A_ = X.colwise() - x_hat;
-  B_ = Y.colwise() - y_hat;
+  Pf = X.colwise() - x_hat;
+  Pa = Y.colwise() - y_hat;
 
-  // A_ = A_ * A_.transpose() / (N - 1);
-  // B_ = B_ * B_.transpose() / (N - 1);
-  // for(int i = 0; i < N; i++) {
-  //   P+= W(i) * (X.col(i) - x_hat) * (Y.col(i) - y_hat).transpose(); //remember this
-  // }
 
-  P = A_ * B_.transpose() / (N-1);
+  P = Pf * Pa.transpose() / (N-1);
 
-  // K = P * ((A_*A_.transpose()) + (R*0.0001)).inverse();
+  // K = P * ((Pf*Pf.transpose()) + (R*0.0001)).inverse();
   K = P * (P + (R*0.0001)).inverse();
   // K = P * (P + (R*0.00001)).inverse();
-  // K = P * (B_ * B_.transpose()/(N-1) + R).inverse();
+  // K = P * (Pa * Pa.transpose()/(N-1) + R).inverse();
   // x_hat += K * (y - y_hat);  
   X += K * (Y - X);  
   x_hat = X * W;
@@ -214,7 +229,8 @@ void EnsembleKalmanFilter::update(const Eigen::VectorXd& y) {
 
 }
 
-void EnsembleKalmanFilter::jointProbabilisticDataAssociation(const Eigen::MatrixXd& y) {
+void EnsembleKalmanFilter::jointProbabilisticDataAssociation(const Eigen::MatrixXd& y) 
+{
   // // joint probabilistic data association
   // // y is a matrix of measurements
   // // each column is a measurement
@@ -246,7 +262,8 @@ void EnsembleKalmanFilter::jointProbabilisticDataAssociation(const Eigen::Matrix
 
 
 
-void EnsembleKalmanFilter::nearestNeighborDataAssociation(const Eigen::MatrixXd& y) {
+void EnsembleKalmanFilter::nearestNeighborDataAssociation(const Eigen::MatrixXd& y) 
+{
   // nearest neighbor data association
   // y is a matrix of measurements
   // // each column is a measurement

@@ -12,14 +12,15 @@ def generate_launch_description():
                 {'publish_rate': 10},
                 # {'publish_rate': 20},
                 {'map_frame': 'map'},
-                {'clustering_tolerance': 1.0750},
-                {'min_cluster_size': 2.0},
-                {'min_cluster_size': 2.0},
+                {'clustering_tolerance': 0.75},
+                # {'clustering_tolerance': 0.50},
+                {'min_cluster_size': 1.0},
+                # {'min_cluster_size': 2.0},
                 {'max_cluster_size': 5000.0},
                 {'points_threshold': 500},
                 {'max_distance': 2.0},
                 {'max_expected_velocity': 5.0},
-                {'scanner_range': 7.0},
+                {'scanner_range': 10.0},
 
                 # {'cluster_search_method': 'dbscan'},
                 {'cluster_search_method': 'kdtree'},
@@ -29,6 +30,7 @@ def generate_launch_description():
                 {'max_iterations': 1000},
                 # {'tracker_type': 'kf'},
                 {'tracker_type': 'enkf'},
+                {'sliding_window_size': 15},
                 {'state_size': 4},
                 {'control_size': 0},
                 {'measurement_size': 4},
@@ -45,9 +47,9 @@ def generate_launch_description():
                 # ("point_cloud", "scan_matched_points2"),
                 # ("point_cloud", "kitti/point_cloud"),
 
-                ("in_1", "itav_agv/safety_lidar_front_link/scan"),
+                # ("in_1", "itav_agv/safety_lidar_front_link/scan"),
                 # ("in_1", "/safety_lidar_front_link/scan"),
-                ("in_2", "itav_agv/safety_lidar_back_link/scan"),
+                # ("in_2", "itav_agv/safety_lidar_back_link/scan"),
                 # ("in_2", "/safety_lidar_back_link/scan"),
                 ("out", "itav_agv/tracker/point_clusters"),
             ],
@@ -56,6 +58,6 @@ def generate_launch_description():
         Node(
             package='tracker',
             executable='tracked_objects.py',
-            name='tracked_objects',
+            name='scan2pointcloud',
         )
     ])

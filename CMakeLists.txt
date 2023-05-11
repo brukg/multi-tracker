@@ -18,12 +18,14 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(laser_geometry REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 find_package(rviz_visual_tools REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(PCL 1.10 REQUIRED COMPONENTS common io filters segmentation)
+find_package(rcpputils)
 add_subdirectory(dbscan)
 
 
@@ -65,6 +67,7 @@ ament_target_dependencies(tracker
   std_msgs 
   sensor_msgs
   geometry_msgs
+  laser_geometry
   nav_msgs
   tf2_ros
   tf2_eigen
@@ -90,7 +93,7 @@ install(
 )
 
 install(PROGRAMS
-    scripts/tracked_objects.py
+    scripts/scan2pc.py
   DESTINATION 
     lib/${PROJECT_NAME}
 )

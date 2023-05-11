@@ -1,73 +1,114 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root>
- <tabbed_widget parent="main_window" name="Main Window">
-  <Tab containers="1" tab_name="tab1">
+ <tabbed_widget name="Main Window" parent="main_window">
+  <Tab tab_name="tab1" containers="1">
    <Container>
-    <DockSplitter count="1" sizes="1" orientation="-">
+    <DockSplitter count="2" orientation="-" sizes="0.499436;0.500564">
      <DockArea name="...">
-      <plot flip_x="false" flip_y="false" mode="XYPlot" style="Lines">
-       <range right="19.432555" bottom="15.706837" left="16.095773" top="17.484061"/>
+      <plot flip_y="false" style="Lines" flip_x="false" mode="XYPlot">
+       <range top="14.489422" bottom="5.648987" left="4.858838" right="6.769706"/>
        <limitY/>
-       <curve color="#1f77b4" name="/itav_agv/odom/pose/pose/position/[x;y]" curve_y="/itav_agv/odom/pose/pose/position/y" curve_x="/itav_agv/odom/pose/pose/position/x"/>
-       <curve color="#f14cc1" name="/obstacles_state/data.[0;1]" curve_y="/obstacles_state/data.1" curve_x="/obstacles_state/data.0"/>
+       <curve name="/robot_2/ground_truth/position/[x;y]" curve_y="/robot_2/ground_truth/pose/pose/position/y" color="#1f77b4" curve_x="/robot_2/ground_truth/pose/pose/position/x"/>
+       <curve name="/tracker/state/1" curve_y="/tracker/obstacles_state/data.9" color="#0eff3e" curve_x="/tracker/obstacles_state/data.8"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_y="false" style="Lines" flip_x="false" mode="XYPlot">
+       <range top="5.466982" bottom="-1.609123" left="4.805467" right="8.288563"/>
+       <limitY/>
+       <curve name="/robot_1/ground_truth/position/[x;y]" curve_y="/robot_1/ground_truth/pose/pose/position/y" color="#1f77b4" curve_x="/robot_1/ground_truth/pose/pose/position/x"/>
+       <curve name="/tracker/state/1" curve_y="/tracker/obstacles_state/data.5" color="#0eff3e" curve_x="/tracker/obstacles_state/data.4"/>
       </plot>
      </DockArea>
     </DockSplitter>
    </Container>
   </Tab>
-  <Tab containers="1" tab_name="tab2">
+  <Tab tab_name="tab6" containers="1">
    <Container>
-    <DockSplitter count="1" sizes="1" orientation="-">
+    <DockSplitter count="2" orientation="-" sizes="0.500564;0.499436">
      <DockArea name="...">
-      <plot flip_x="false" flip_y="false" mode="XYPlot" style="Lines">
-       <range right="8.738903" bottom="-2.805007" left="5.568472" top="-1.119784"/>
+      <plot flip_y="false" style="Lines" flip_x="false" mode="TimeSeries">
+       <range top="0.538842" bottom="-0.456053" left="52.215450" right="73.678484"/>
        <limitY/>
-       <curve color="#ff7f0e" name="/obstacles_state/data.[4;5]" curve_y="/obstacles_state/data.5" curve_x="/obstacles_state/data.4"/>
-       <curve color="#f14cc1" name="/odom/pose/pose/position/[x;y]" curve_y="/odom/pose/pose/position/y" curve_x="/odom/pose/pose/position/x"/>
+       <curve name="/robot_2/ground_truth/twist/twist/linear/x" color="#1aafc9">
+        <transform name="Scale/Offset" alias="/robot_2/ground_truth/linear/x">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
+       <curve name="/tracker/obstacles_state/data.10" color="#00ff4b">
+        <transform name="Scale/Offset" alias="/tracker/velocity/x">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_y="false" style="Lines" flip_x="false" mode="TimeSeries">
+       <range top="0.641742" bottom="-0.124225" left="52.096152" right="81.537900"/>
+       <limitY/>
+       <curve name="/tracker/obstacles_state/data.11" color="#00ff4b">
+        <transform name="Scale/Offset" alias="/tracker/velocity/y">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
+       <curve name="/robot_2/ground_truth/twist/twist/linear/y" color="#1aafc9">
+        <transform name="Scale/Offset" alias="/robot_2/ground_truth/linear/y">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
       </plot>
      </DockArea>
     </DockSplitter>
    </Container>
   </Tab>
-  <Tab containers="1" tab_name="tab3">
+  <Tab tab_name="tab7" containers="1">
    <Container>
-    <DockSplitter count="1" sizes="1" orientation="-">
+    <DockSplitter count="2" orientation="-" sizes="0.500564;0.499436">
      <DockArea name="...">
-      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
-       <range right="198.302923" bottom="-0.432311" left="98.199503" top="0.879381"/>
+      <plot flip_y="false" style="Lines" flip_x="false" mode="TimeSeries">
+       <range top="0.511991" bottom="-0.439683" left="0.000000" right="44.472782"/>
        <limitY/>
-       <curve color="#d62728" name="/itav_agv/odom/twist/twist/linear/x"/>
-       <curve color="#1ac938" name="/obstacles_state/data.2"/>
-       <curve color="#ff7f0e" name="/obstacles_state/data.3"/>
+       <curve name="/robot_1/ground_truth/twist/twist/linear/x" color="#4cd4f1">
+        <transform name="Scale/Offset" alias="/robot_1/ground_truth/linear/x">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
+       <curve name="/tracker/obstacles_state/data.6" color="#00ff4b">
+        <transform name="Scale/Offset" alias="/tracker/velocity/x">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_y="false" style="Lines" flip_x="false" mode="TimeSeries">
+       <range top="0.388640" bottom="-0.535871" left="6.517081" right="42.393234"/>
+       <limitY/>
+       <curve name="/robot_1/ground_truth/twist/twist/linear/y" color="#4cd4f1">
+        <transform name="Scale/Offset" alias="/robot_1/ground_truth/linear/y">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
+       <curve name="/tracker/obstacles_state/data.7" color="#00ff4b">
+        <transform name="Scale/Offset" alias="/tracker/velocity/y">
+         <options value_offset="0" value_scale="1.0" time_offset="0"/>
+        </transform>
+       </curve>
       </plot>
      </DockArea>
     </DockSplitter>
    </Container>
   </Tab>
-  <Tab containers="1" tab_name="tab5">
-   <Container>
-    <DockSplitter count="1" sizes="1" orientation="-">
-     <DockArea name="...">
-      <plot flip_x="false" flip_y="false" mode="TimeSeries" style="Lines">
-       <range right="197.781871" bottom="-0.396665" left="0.000000" top="0.493998"/>
-       <limitY/>
-       <curve color="#9467bd" name="/odom/twist/twist/linear/x"/>
-       <curve color="#17becf" name="/obstacles_state/data.6"/>
-       <curve color="#1f77b4" name="/obstacles_state/data.7"/>
-      </plot>
-     </DockArea>
-    </DockSplitter>
-   </Container>
-  </Tab>
-  <currentTabIndex index="2"/>
+  <currentTabIndex index="1"/>
  </tabbed_widget>
  <use_relative_time_offset enabled="1"/>
  <!-- - - - - - - - - - - - - - - -->
  <!-- - - - - - - - - - - - - - - -->
  <Plugins>
   <plugin ID="DataLoad CSV">
-   <default delimiter="0" time_axis=""/>
+   <default time_axis="" delimiter="0"/>
   </plugin>
+  <plugin ID="DataLoad MCAP"/>
   <plugin ID="DataLoad ROS2 bags">
    <use_header_stamp value="false"/>
    <discard_large_arrays value="true"/>

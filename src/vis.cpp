@@ -9,7 +9,7 @@ namespace tracker
     marker.header.frame_id = map_frame_;
     marker.header.stamp = this->now();
     marker.ns = "objects";
-    marker.type = visualization_msgs::msg::Marker::CYLINDER;
+    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
     marker.action = visualization_msgs::msg::Marker::ADD;
     marker.color.a = 1.0;
     marker.color.r = 0.0;
@@ -84,12 +84,40 @@ namespace tracker
       R_ = objects_[i].getRadius();
 
       marker.id = i;//objects_[i].getIdentifier();
-      marker.pose.position.x = x_;
-      marker.pose.position.y = y_;
+      // marker.pose.position.x = x_;
+      // marker.pose.position.y = y_;
 
-      marker.scale.x = R_+0.001;
-      marker.scale.y = R_+0.001;
-      marker.scale.z = 0.1;
+      // marker.scale.x = 2*R_+0.001;
+      // marker.scale.y = 2*R_+0.001;
+      // marker.scale.z = 0.1;
+      marker.scale.x = 0.05;
+      marker.scale.y = 0.05;
+      marker.scale.z = 0.01;
+      std::array<double, 2> width_height = objects_[i].getWidthHeight();
+      marker.points.clear();
+      // create rectangle marker based on width and height only
+      geometry_msgs::msg::Point p;
+      p.x = x_ - width_height[0]/2;
+      p.y = y_ - width_height[1]/2;
+      p.z = 0.1;
+      marker.points.push_back(p);
+      p.x = x_ + width_height[0]/2;
+      p.y = y_ - width_height[1]/2;
+      p.z = 0.1;
+      marker.points.push_back(p);
+      p.x = x_ + width_height[0]/2;
+      p.y = y_ + width_height[1]/2;
+      p.z = 0.1;
+      marker.points.push_back(p);
+      p.x = x_ - width_height[0]/2;
+      p.y = y_ + width_height[1]/2;
+      p.z = 0.1;
+      // marker.points.push_back(p);
+      // p.x = x_ - width_height[0]/2;
+      // p.y = y_ - width_height[1]/2;
+      // p.z = 0.1;
+      marker.points.push_back(p);
+      marker.points.push_back(marker.points[0]);
 
       marker_array.markers.push_back(marker);
 
@@ -119,7 +147,7 @@ namespace tracker
 
 
       // particles
-      geometry_msgs::msg::Point p;
+      // geometry_msgs::msg::Point p;
       Eigen::MatrixXd point_praticle = objects_[i].getEnsembles();
       point_particles.id = i;
       for (int j = 0; j < point_praticle.cols(); j++) {
