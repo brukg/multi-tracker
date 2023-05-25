@@ -57,7 +57,7 @@ def generate_launch_description():
 
         Node(
             package='tracker',
-            executable='tracked_objects.py',
+            executable='scan2pc.py',
             name='scan2pointcloud',
         )
     ])

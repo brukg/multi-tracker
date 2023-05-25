@@ -23,7 +23,6 @@ class TrackedObjects:
 
         self.qos_profile = qos_profile_sensor_data
 
-        # self.tracked_objects_sub = node.create_subscription(Float32MultiArray, 'obstacles_state', self.tracked_objects_callback, qos_profile=self.qos_profile)
         # self.laser_front_sub = node.create_subscription(LaserScan, 'itav_agv/safety_lidar_front_link/scan', self.laser_callback, qos_profile_sensor_data)
         # self.laser_back_sub = node.create_subscription(LaserScan, '/safety_lidar_back_link/scan', self.laser_callback, qos_profile_sensor_data)
         self.laser_back_sub = node.create_subscription(LaserScan, 'scan', self.laser_callback, qos_profile_sensor_data)
@@ -45,9 +44,7 @@ class TrackedObjects:
         # self.point_cloud_transformer = PointCloud2Transformer(self.tf_buffer, 'map')
 
         self.point2_pub = node.create_publisher(PointCloud2, 'point_cloud', 1)
-        # self.tracked_objects_sub  # prevent unused variable warning
-        # self.plt_timer = node.create_timer(0.025, self.plot_tracked_objects)
-    
+
     
     # def laser_callback(self, msg, msg2):
     def laser_callback(self, msg):
@@ -76,35 +73,10 @@ class TrackedObjects:
         # self.point2_pub.publish(pc)
         
 
-
-
-    
-    def tracked_objects_callback(self, msg):
-        self.tracked_objects = np.array(msg.data).reshape(-1, 4)
-
-
-    def plot_tracked_objects(self):
-        x = range(0, len(self.tracked_objects))
-        # print("tracked objects: ", self.tracked_objects)
-        if len(self.tracked_objects) > 0:
-            for i in range(0, len(self.tracked_objects)):
-                plt.plot(self.timestamp, self.tracked_objects[i, 0], 'ro')
-                plt.plot(self.timestamp, self.tracked_objects[i, 1], 'bo')
-                plt.plot(self.timestamp, self.tracked_objects[i, 2], 'go')
-                plt.plot(self.timestamp, self.tracked_objects[i, 3], 'yo')
-            # plt.scatter(self.tracked_objects[:, 0], self.tracked_objects[:, 1])
-            # plt.legend(['xy'])
-            # plt.plot(x, self.tracked_objects[:, 2], 'g')
-            # plt.plot(x, self.tracked_objects[:, 3], 'y')
-            plt.legend(['vx','vy'])
-            plt.pause(0.00005)
-        
-        # plt.show()
-
 def main(args=None):
     rclpy.init(args=args)
 
-    node = rclpy.create_node('tracked_objects')
+    node = rclpy.create_node('scan2pc')
 
     tracked_objects = TrackedObjects(node)
 

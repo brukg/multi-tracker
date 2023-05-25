@@ -208,16 +208,23 @@ void EnsembleKalmanFilter::update(const Eigen::VectorXd& y)
   Y.block(0, 1, m, N-1) = noise_;
   Eigen::VectorXd y_hat = Y * W;
 
-  Pf = X.colwise() - x_hat;
-  Pa = Y.colwise() - y_hat;
+  // Pf = X.colwise() - x_hat;
+  // Pa = Y.colwise() - y_hat;
 
 
-  P = Pf * Pa.transpose() / (N-1);
+  // P = Pf * Pa.transpose() / (N-1);
+  // K = P * (P + (R*0.0001)).inverse();
 
-  // K = P * ((Pf*Pf.transpose()) + (R*0.0001)).inverse();
+  // /////////////////////////////////
+  Pf = (X.colwise() - x_hat)/(N-1);
+  Pa = (Y.colwise() - y_hat)/(N-1);
+
+
+  P = Pf * Pa.transpose();
   K = P * (P + (R*0.0001)).inverse();
-  // K = P * (P + (R*0.00001)).inverse();
-  // K = P * (Pa * Pa.transpose()/(N-1) + R).inverse();
+////////////////////////////////////
+  // K = P * ((Pf*Pf.transpose()) + (R*0.0001)).inverse();
+  // K = P * (Pa * Pa.transpose()/(N-1) + (R*0.0001)).inverse();
   // x_hat += K * (y - y_hat);  
   X += K * (Y - X);  
   x_hat = X * W;
