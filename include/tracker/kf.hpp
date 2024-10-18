@@ -48,12 +48,12 @@ class KalmanFilter {
 		/**
 		* Update the dynamics matrix.
 		*/
-		virtual void update_dynamics(const Eigen::MatrixXd A);
+		virtual void updateDynamics(const Eigen::MatrixXd A);
 
 		/**
 		* Update the output matrix.
 		*/
-		void update_output(const Eigen::MatrixXd H);
+		void updateOutput(const Eigen::MatrixXd H);
 
 		/**
 		* Return the current state.

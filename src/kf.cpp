@@ -99,13 +99,13 @@ void KalmanFilter::update(const Eigen::VectorXd& y)
 
 };
 
-void KalmanFilter::update_dynamics(const Eigen::MatrixXd A) 
+void KalmanFilter::updateDynamics(const Eigen::MatrixXd A) 
 {
 
   this->A = A;
 };
 
-void KalmanFilter::update_output(const Eigen::MatrixXd H) 
+void KalmanFilter::updateOutput(const Eigen::MatrixXd H) 
 {
 
   this->H = H;
@@ -208,12 +208,12 @@ void EnsembleKalmanFilter::update(const Eigen::VectorXd& y)
   Y.block(0, 1, m, N-1) = noise_;
   Eigen::VectorXd y_hat = Y * W;
 
-  // Pf = X.colwise() - x_hat;
-  // Pa = Y.colwise() - y_hat;
-
-
-  // P = Pf * Pa.transpose() / (N-1);
-  // K = P * (P + (R*0.0001)).inverse();
+  // /////////////////////////////////////////
+  // Pf = X.colwise() - x_hat;              //
+  // Pa = Y.colwise() - y_hat;              //
+  // P = Pf * Pa.transpose() / (N-1);       //
+  // K = P * (P + (R*0.0001)).inverse();    //
+  // /////////////////////////////////////////
 
   // /////////////////////////////////
   Pf = (X.colwise() - x_hat)/(N-1);
@@ -221,11 +221,14 @@ void EnsembleKalmanFilter::update(const Eigen::VectorXd& y)
 
 
   P = Pf * Pa.transpose();
-  K = P * (P + (R*0.0001)).inverse();
-////////////////////////////////////
-  // K = P * ((Pf*Pf.transpose()) + (R*0.0001)).inverse();
-  // K = P * (Pa * Pa.transpose()/(N-1) + (R*0.0001)).inverse();
-  // x_hat += K * (y - y_hat);  
+  K = P * (P + (R*0.000001)).inverse();
+
+
+  ////////////////////////////////////////////////////////////////////
+  // K = P * ((Pf*Pf.transpose()) + (R*0.0001)).inverse();          //
+  // K = P * (Pa * Pa.transpose()/(N-1) + (R*0.0001)).inverse();    //
+  // x_hat += K * (y - y_hat);                                      //
+  ////////////////////////////////////////////////////////////////////
   X += K * (Y - X);  
   x_hat = X * W;
   counter = 0;
